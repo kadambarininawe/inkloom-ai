@@ -1,17 +1,105 @@
-# React + Vite
+# INKLOOM AI
+### Create Freely. Stay On Brand.
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+**AI-Powered Brand Governance and Content Review Platform**
 
-Currently, two official plugins are available:
+<p align="center">
+  <a href="https://inkloom-ai.kadambarininawe28.workers.dev">
+    <strong>🚀 CLICK HERE TO OPEN INKLOOM AI — LIVE DEMO</strong>
+  </a>
+</p>
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## About the Project
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+INKLOOM AI is an AI-powered brand governance platform that helps businesses maintain brand consistency across their marketing content.
 
-## Expanding the Oxlint configuration
+It analyzes text and visual content against saved brand guidelines, identifies inconsistencies, suggests improvements and supports human approval before publication.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
-Deployment configuration updated
+## Features
+
+- **Dashboard:** Track reviews, compliance scores and pending approvals.
+- **Brand DNA:** Define brand personality, tone, approved words, restricted words, rules and colours.
+- **Content Checker:** Analyze written content against brand guidelines.
+- **Image & Poster Review:** Upload images for AI-powered visual analysis.
+- **Approval Center:** Approve submitted content or request changes.
+- **Review History:** View previously submitted reviews.
+
+## Technology Stack
+
+- Frontend: React.js, Vite, CSS
+- Backend: Python, Flask
+- Database: TiDB Cloud (MySQL compatible)
+- AI: Google Gemini
+- Icons: Lucide React
+- Frontend Hosting: Cloudflare
+- Backend Hosting: Render
+
+## Live Demo
+
+**[🚀 Launch INKLOOM AI](https://inkloom-ai.kadambarininawe28.workers.dev)**
+
+No installation is required to explore the deployed application.
+
+## Run Locally
+
+### Frontend
+
+```bash
+git clone https://github.com/kadambarininawe/inkloom-ai.git
+cd inkloom-ai
+npm install
+npm run dev
+```
+
+### Backend
+
+Open another terminal:
+
+```bash
+cd backend
+python -m venv venv
+```
+
+On Windows, activate it:
+
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Configure the required environment variables in a private `backend/.env` file:
+
+- GEMINI_API_KEY
+- DB_HOST
+- DB_PORT
+- DB_USER
+- DB_PASSWORD
+- DB_NAME
+
+Start the backend:
+
+```bash
+python app.py
+```
+
+## Future Scope
+
+- User authentication and individual brand workspaces.
+- Advanced compliance analytics.
+- Detailed review reports.
+- Additional content formats and integrations.
+
+## Team
+
+**Developed by Team AlgoX**
+
+## Repository
+
+[GitHub — INKLOOM AI](https://github.com/kadambarininawe/inkloom-ai)
