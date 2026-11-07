@@ -1,4 +1,4 @@
-
+import { apiUrl } from './api'
 import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, BookOpen, FileCheck, History,
@@ -40,9 +40,7 @@ const handleSearchKeyDown = (event) => {
 
   const handleImageReviewDecision = async (id, status) => {
     try {
-      const response = await fetch(
-        `http://127.0.0.1:5000/api/reviews/${id}`,
-        {
+      const response = await fetch(apiUrl(`/api/reviews/${id}`), {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json'
@@ -94,7 +92,7 @@ const [approvedWords, setApprovedWords] = useState(initialBrandDNA.approvedWords
 const [restrictedWords, setRestrictedWords] = useState(initialBrandDNA.restrictedWords)
 const [brandRules, setBrandRules] = useState(initialBrandDNA.brandRules)
 useEffect(() => {
-  fetch('http://127.0.0.1:5000/api/brand')
+  fetch(apiUrl('/api/brand'))
     .then(response => {
       if (!response.ok) {
         throw new Error('Failed to load Brand DNA')
@@ -140,7 +138,7 @@ const [approvalReviews, setApprovalReviews] = useState([])
 useEffect(() => {
   if (active !== 'Approval Center') return
 
-  fetch('http://127.0.0.1:5000/api/reviews')
+  fetch(apiUrl('/api/reviews'))
     .then(response => response.json())
     .then(data => {
       setApprovalReviews(
@@ -155,7 +153,7 @@ useEffect(() => {
 useEffect(() => {
 if (active !== 'History' && active !== 'Dashboard') return
 
-  fetch('http://127.0.0.1:5000/api/reviews')
+  fetch(apiUrl('/api/reviews'))
     .then(response => {
       if (!response.ok) {
         throw new Error('Failed to fetch review history')
@@ -205,7 +203,7 @@ async function saveBrandDNA() {
   // Save to MySQL through Flask
   try {
     const response = await fetch(
-      'http://127.0.0.1:5000/api/brand',
+      apiUrl('/api/brand'),
       {
         method: 'POST',
         headers: {
@@ -310,7 +308,7 @@ async function handleReview(status) {
   // Save the review to MySQL through Flask
   try {
     const response = await fetch(
-      'http://127.0.0.1:5000/api/reviews',
+      apiUrl('/api/reviews'),
       {
         method: 'POST',
         headers: {

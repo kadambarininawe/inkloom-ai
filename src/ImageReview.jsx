@@ -1,4 +1,4 @@
-
+import { apiUrl } from './api'
 import { useState } from 'react'
 import {
   Sparkles,
@@ -132,7 +132,7 @@ function ImageReview() {
       formData.append('image', file)
 
       const response = await fetch(
-        'http://127.0.0.1:5000/api/analyze-image',
+  apiUrl('/api/analyze-image'),
         {
           method: 'POST',
           body: formData
