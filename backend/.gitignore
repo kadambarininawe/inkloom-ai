@@ -1,0 +1,15 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+backend/.env
+
+# Python
+backend/venv/
+venv/
+__pycache__/
+*.pyc
+
+# React
+node_modules/
+dist/
