@@ -65,16 +65,16 @@ const handleSearchKeyDown = (event) => {
     }
   }
 
-  const defaultBrandDNA = {
-    brandName: 'INKLOOM',
-    tone: 'Professional and friendly',
-    personality: 'Premium and creative',
-    approvedWords: 'Innovative, elegant, thoughtful',
-    restrictedWords: 'Best in the world, guaranteed results',
-    brandRules:
-      'Use clear language. Avoid unsupported claims. Maintain a professional and friendly voice.'
-  }
-
+const defaultBrandDNA = {
+  brandName: 'INKLOOM',
+  tone: 'Professional and friendly',
+  personality: 'Premium and creative',
+  approvedWords: 'Innovative, elegant, thoughtful',
+  restrictedWords: 'Best in the world, guaranteed results',
+  brandRules:
+    'Use clear language. Avoid unsupported claims. Maintain a professional and friendly voice.',
+  brandColors: ''
+}
 
 const [initialBrandDNA] = useState(() => {
   try {
@@ -91,6 +91,7 @@ const [personality, setPersonality] = useState(initialBrandDNA.personality)
 const [approvedWords, setApprovedWords] = useState(initialBrandDNA.approvedWords)
 const [restrictedWords, setRestrictedWords] = useState(initialBrandDNA.restrictedWords)
 const [brandRules, setBrandRules] = useState(initialBrandDNA.brandRules)
+const [brandColors, setBrandColors] = useState(initialBrandDNA.brandColors || '')
 useEffect(() => {
   fetch(apiUrl('/api/brand'))
     .then(response => {
@@ -107,6 +108,7 @@ useEffect(() => {
         setApprovedWords(data.approved_words || '')
         setRestrictedWords(data.restricted_words || '')
         setBrandRules(data.brand_rules || '')
+        setBrandColors(data.brand_colors || '')
 
         localStorage.setItem('inkloomBrandDNA', JSON.stringify({
           brandName: data.brand_name,
@@ -114,7 +116,8 @@ useEffect(() => {
           personality: data.personality || '',
           approvedWords: data.approved_words || '',
           restrictedWords: data.restricted_words || '',
-          brandRules: data.brand_rules || ''
+          brandRules: data.brand_rules || '',
+          brandColors: data.brand_colors || ''
         }))
       }
     })
@@ -183,14 +186,15 @@ const displayedHistory = dbReviewHistory ?? reviewHistory
 
 
 async function saveBrandDNA() {
-  const data = {
-    brandName,
-    tone,
-    personality,
-    approvedWords,
-    restrictedWords,
-    brandRules
-  }
+ const data = {
+  brandName,
+  tone,
+  personality,
+  approvedWords,
+  restrictedWords,
+  brandRules,
+  brandColors
+}
 
   // Save locally
   try {
@@ -215,7 +219,8 @@ async function saveBrandDNA() {
           personality: personality,
           approved_words: approvedWords,
           restricted_words: restrictedWords,
-          brand_rules: brandRules
+          brand_rules: brandRules,
+          brand_colors: brandColors
         })
       }
     )
@@ -708,6 +713,29 @@ const pendingApprovals = statsHistory.filter(
       onChange={e => setBrandRules(e.target.value)}
       placeholder="Write your brand-specific rules..."
     />
+<label>07 — Brand colour palette</label>
+
+<input
+  className="form-input"
+  value={brandColors}
+  onChange={e => setBrandColors(e.target.value)}
+  placeholder="#1F3A5F, #F4EBDD, #D4A373"
+/>
+
+<div className="brand-color-preview">
+  {brandColors.split(',').map((color, index) => {
+    const cleanColor = color.trim()
+
+    return /^#[0-9A-Fa-f]{6}$/.test(cleanColor) ? (
+      <div
+        key={index}
+        className="brand-color-swatch"
+        style={{ backgroundColor: cleanColor }}
+        title={cleanColor}
+      />
+    ) : null
+  })}
+</div>
 
     <div className="dna-footer">
       <div>

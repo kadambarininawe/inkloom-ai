@@ -1813,3 +1813,22 @@ h1, h2, h3,
   color: #81778b;
   font-size: 13px;
 }
+.brand-color-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.brand-color-swatch {
+  width: 65px;
+  height: 65px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease;
+}
+
+.brand-color-swatch:hover {
+  transform: translateY(-3px);
+}
