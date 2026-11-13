@@ -62,7 +62,7 @@ useEffect(() => {
 
 function handleDemoLogin() {
   setAuthMode('login')
-  setAuthEmail('demo@inkloom.ai')
+  setAuthEmail('demo2026@inkloom.ai')
   setAuthPassword('InkloomDemo2026!')
   setAuthError('')
 }
@@ -785,7 +785,7 @@ const pendingApprovals = statsHistory.filter(
              
 <div className="demo-access">
   <strong>Demo Account</strong>
-  <span>Email: demo@inkloom.ai</span>
+  <span>Email: demo2026@inkloom.ai</span>
   <span>Password: InkloomDemo2026!</span>
 
   <button
