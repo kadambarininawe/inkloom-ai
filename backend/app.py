@@ -6,6 +6,7 @@ from database import get_db_connection
 
 import os
 import re
+import hmac
 
 from dotenv import load_dotenv
 from google import genai
@@ -67,6 +68,70 @@ def health():
         "status": "healthy"
     })
 
+
+@app.route("/api/admin/migrate-auth", methods=["POST"])
+def migrate_auth():
+    expected_token = os.getenv("MIGRATION_TOKEN")
+    supplied_token = request.headers.get("X-Migration-Token", "")
+
+    if not expected_token or not hmac.compare_digest(supplied_token, expected_token):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    connection = get_db_connection()
+
+    if connection is None:
+        return jsonify({"error": "Database connection failed."}), 500
+
+    cursor = None
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                email VARCHAR(255) NOT NULL UNIQUE,
+                password_hash VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB
+        """)
+
+        for table in ("brand_guidelines", "review_history"):
+            cursor.execute(f"SHOW COLUMNS FROM {table}")
+            columns = [row[0] for row in cursor.fetchall()]
+
+            if "user_id" not in columns:
+                cursor.execute(
+                    f"ALTER TABLE {table} ADD COLUMN user_id INT NULL"
+                )
+
+            cursor.execute(f"SHOW INDEX FROM {table}")
+            indexes = [row[2] for row in cursor.fetchall()]
+            index_name = f"idx_{table}_user_id"
+
+            if index_name not in indexes:
+                cursor.execute(
+                    f"CREATE INDEX {index_name} ON {table} (user_id)"
+                )
+
+        connection.commit()
+
+        return jsonify({
+            "message": "Authentication database migration successful."
+        }), 200
+
+    except Exception:
+        connection.rollback()
+        app.logger.exception("Authentication database migration failed")
+        return jsonify({
+            "error": "Migration failed. Check server logs."
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+        connection.close()
 
 # -------------------------------
 # SAVE REVIEW
