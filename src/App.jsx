@@ -1,19 +1,160 @@
-import { apiUrl } from './api'
+import { apiFetch } from './api'
 import { useState, useEffect } from 'react'
 import {
-  LayoutDashboard, BookOpen, FileCheck, History,
-  Settings, Bell, Search, Plus, ArrowUpRight,
-  ShieldCheck, AlertTriangle, CheckCircle2,
-  FileText, Sparkles, ChevronDown, Menu
+ LayoutDashboard, BookOpen, FileCheck, History,
+Settings, Bell, Search, Plus, ArrowUpRight,
+ShieldCheck, AlertTriangle, CheckCircle2,
+FileText, Sparkles, ChevronDown, Menu, UserRound
 } from 'lucide-react'
 import './App.css'
 import ImageReview from './ImageReview'
 
 
 function App() {
+  
   const [active, setActive] = useState('Dashboard')
   const [content, setContent] = useState('')
+  const [revisionReviewId, setRevisionReviewId] = useState(null)
+  const [revisionType, setRevisionType] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [workspaceOpen, setWorkspaceOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [selectedPeriod, setSelectedPeriod] = useState('Last 30 days')
+    const [authUser, setAuthUser] = useState(null)
+    const [profileName, setProfileName] = useState('')
+const [profileEmail, setProfileEmail] = useState('')
+const [profileMessage, setProfileMessage] = useState('')
+const [profileEditing, setProfileEditing] = useState(false)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [authMode, setAuthMode] = useState('login')
+  const [authName, setAuthName] = useState('')
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authError, setAuthError] = useState('')
+
+   
+useEffect(() => {
+  apiFetch('/api/me')
+    .then(response => {
+      if (!response.ok) {
+        setAuthUser(null)
+        return null
+      }
+      return response.json()
+    })
+    .then(data => {
+      if (data) {
+        setAuthUser(data.user)
+        setProfileName(data.user.name || '')
+        setProfileEmail(data.user.email || '')
+      }
+    })
+    .catch(error => {
+      console.error('Authentication check failed:', error)
+      setAuthUser(null)
+    })
+    .finally(() => {
+      setAuthLoading(false)
+    })
+}, [])
+
+
+
+  async function handleAuthSubmit(event) {
+    event.preventDefault()
+    setAuthError('')
+
+    if (!authEmail.trim() || !authPassword) {
+      setAuthError('Please enter your email and password.')
+      return
+    }
+
+    if (authMode === 'register' && !authName.trim()) {
+      setAuthError('Please enter your name.')
+      return
+    }
+
+    try {
+      const response = await apiFetch(
+        authMode === 'register' ? '/api/register' : '/api/login',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: authName.trim(),
+            email: authEmail.trim(),
+            password: authPassword
+          })
+        }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Authentication failed.')
+      }
+
+      setAuthUser(data.user)
+      setAuthPassword('')
+      setAuthError('')
+
+    } catch (error) {
+      setAuthError(error.message || 'Unable to connect to the server.')
+    }
+  }
+
+
+    async function handleLogout() {
+    try {
+      const response = await apiFetch('/api/logout', {
+        method: 'POST'
+      })
+
+      if (!response.ok) {
+        throw new Error('Logout failed.')
+      }
+
+      setAuthUser(null)
+      setAuthPassword('')
+      setActive('Dashboard')
+
+    } catch (error) {
+      alert(error.message || 'Could not log out.')
+    }
+  }
+
+async function handleProfileUpdate(event) {
+  event.preventDefault()
+  setProfileMessage('')
+
+  try {
+    const response = await apiFetch('/api/profile', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: profileName,
+        email: profileEmail
+      })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      setProfileMessage(data.error || 'Profile update failed.')
+      return
+    }
+
+    setAuthUser(data.user)
+    setProfileMessage('Profile updated successfully!')
+
+  } catch (error) {
+    setProfileMessage('Could not connect to the server.')
+  }
+}
 
 const searchablePages = [
   'Dashboard',
@@ -38,32 +179,61 @@ const handleSearchKeyDown = (event) => {
   }
 }
 
-  const handleImageReviewDecision = async (id, status) => {
-    try {
-      const response = await fetch(apiUrl(`/api/reviews/${id}`), {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ status })
-        }
-      )
 
-      const data = await response.json()
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Could not update review')
-      }
+const handleImageReviewDecision = async (id, status) => {
+  let reviewerFeedback = ''
 
-      setApprovalReviews(prev =>
-        prev.filter(review => review.id !== id)
-      )
+  if (status === 'Needs Changes') {
+    reviewerFeedback = window.prompt(
+      'Explain what needs to be changed:'
+    )
 
-    } catch (error) {
-      console.error('Approval error:', error)
-      alert('Could not update the review. Please try again.')
+    if (reviewerFeedback === null) {
+      return
+    }
+
+    if (!reviewerFeedback.trim()) {
+      alert('Please enter feedback before requesting changes.')
+      return
     }
   }
+
+  try {
+    const response = await apiFetch(`/api/reviews/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        status,
+        reviewer_feedback: reviewerFeedback.trim()
+      })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Could not update review')
+    }
+
+    setApprovalReviews(prev =>
+      prev.filter(review => review.id !== id)
+    )
+
+    alert(
+      status === 'Needs Changes'
+        ? 'Feedback saved successfully!'
+        : 'Review approved successfully!'
+    )
+
+  } catch (error) {
+    console.error('Approval error:', error)
+    alert(error.message || 'Could not update the review. Please try again.')
+  }
+}
+
+
 
 const defaultBrandDNA = {
   brandName: 'INKLOOM',
@@ -76,14 +246,7 @@ const defaultBrandDNA = {
   brandColors: ''
 }
 
-const [initialBrandDNA] = useState(() => {
-  try {
-    const saved = localStorage.getItem('inkloomBrandDNA')
-    return saved ? { ...defaultBrandDNA, ...JSON.parse(saved) } : defaultBrandDNA
-  } catch {
-    return defaultBrandDNA
-  }
-})
+const [initialBrandDNA] = useState(defaultBrandDNA)
 
 const [brandName, setBrandName] = useState(initialBrandDNA.brandName)
 const [tone, setTone] = useState(initialBrandDNA.tone)
@@ -93,7 +256,18 @@ const [restrictedWords, setRestrictedWords] = useState(initialBrandDNA.restricte
 const [brandRules, setBrandRules] = useState(initialBrandDNA.brandRules)
 const [brandColors, setBrandColors] = useState(initialBrandDNA.brandColors || '')
 useEffect(() => {
-  fetch(apiUrl('/api/brand'))
+  if (!authUser) return
+
+  // Reset fields before loading this account's Brand DNA
+  setBrandName(defaultBrandDNA.brandName)
+  setTone(defaultBrandDNA.tone)
+  setPersonality(defaultBrandDNA.personality)
+  setApprovedWords(defaultBrandDNA.approvedWords)
+  setRestrictedWords(defaultBrandDNA.restrictedWords)
+  setBrandRules(defaultBrandDNA.brandRules)
+  setBrandColors(defaultBrandDNA.brandColors)
+
+  apiFetch('/api/brand')
     .then(response => {
       if (!response.ok) {
         throw new Error('Failed to load Brand DNA')
@@ -109,54 +283,54 @@ useEffect(() => {
         setRestrictedWords(data.restricted_words || '')
         setBrandRules(data.brand_rules || '')
         setBrandColors(data.brand_colors || '')
-
-        localStorage.setItem('inkloomBrandDNA', JSON.stringify({
-          brandName: data.brand_name,
-          tone: data.tone || '',
-          personality: data.personality || '',
-          approvedWords: data.approved_words || '',
-          restrictedWords: data.restricted_words || '',
-          brandRules: data.brand_rules || '',
-          brandColors: data.brand_colors || ''
-        }))
       }
     })
     .catch(error => {
       console.error('Brand DNA loading error:', error)
     })
-}, [])
+}, [authUser?.id])
 const [analyzed, setAnalyzed] = useState(false)
 const [analysisResult, setAnalysisResult] = useState(null)
 const [approvalStatus, setApprovalStatus] = useState('Pending Review')
-const [reviewHistory, setReviewHistory] = useState(() => {
-  try {
-    return JSON.parse(localStorage.getItem('inkloomReviewHistory')) || []
-  } catch {
-    return []
-  }
-})
+const [reviewHistory, setReviewHistory] = useState([])
 
-const [dbReviewHistory, setDbReviewHistory] = useState(null)
+const [dbReviewHistory, setDbReviewHistory] = useState([])
 const [approvalReviews, setApprovalReviews] = useState([])
 useEffect(() => {
-  if (active !== 'Approval Center') return
+  if (!authUser || active !== 'Approval Center') return
 
-  fetch(apiUrl('/api/reviews'))
-    .then(response => response.json())
+  setApprovalReviews([])
+
+  apiFetch('/api/reviews')
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to load approval requests')
+      }
+      return response.json()
+    })
     .then(data => {
       setApprovalReviews(
-        data.filter(item => item.status === 'Pending')
+        data.filter(item =>
+  item.status === 'Pending' ||
+  item.status === 'Pending Review'
+)
       )
     })
     .catch(error => {
       console.error('Approval loading error:', error)
+      setApprovalReviews([])
     })
-}, [active])
+}, [active, authUser?.id])
+  
 
 useEffect(() => {
-if (active !== 'History' && active !== 'Dashboard') return
+  if (!authUser) return
 
-  fetch(apiUrl('/api/reviews'))
+  if (active !== 'History' && active !== 'Dashboard') return
+
+  setDbReviewHistory([])
+
+  apiFetch('/api/reviews')
     .then(response => {
       if (!response.ok) {
         throw new Error('Failed to fetch review history')
@@ -164,25 +338,28 @@ if (active !== 'History' && active !== 'Dashboard') return
       return response.json()
     })
     .then(data => {
-      const formattedHistory = data.map(item => ({
-        id: item.id,
-        brandName: item.brand_name,
-        content: item.content,
-        score: item.compliance_score,
-        issues: item.issues_count,
-        status: item.status,
-        reviewedAt: item.reviewed_at
-      }))
+  const formattedHistory = data.map(item => ({
+  id: item.id,
+  brandName: item.brand_name,
+  content: item.content,
+  score: item.compliance_score,
+  issues: item.issues_count,
+  status: item.status,
+  reviewedAt: item.reviewed_at,
+  reviewerFeedback: item.reviewer_feedback
+}))
 
       setDbReviewHistory(formattedHistory)
     })
     .catch(error => {
       console.error('History loading error:', error)
-      setDbReviewHistory(null)
+      setDbReviewHistory([])
     })
-}, [active])
+}, [active, authUser?.id])
 
-const displayedHistory = dbReviewHistory ?? reviewHistory
+
+
+const displayedHistory = dbReviewHistory
 
 
 async function saveBrandDNA() {
@@ -196,27 +373,18 @@ async function saveBrandDNA() {
   brandColors
 }
 
-  // Save locally
-  try {
-    localStorage.setItem('inkloomBrandDNA', JSON.stringify(data))
-  } catch {
-    alert('Unable to save Brand DNA locally.')
-    return
-  }
 
   // Save to MySQL through Flask
   try {
-    const response = await fetch(
-      apiUrl('/api/brand'),
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          brand_name: brandName,
-          tone: tone,
-          personality: personality,
+    const response = await apiFetch('/api/brand', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        brand_name: brandName,
+        tone: tone,
+        personality: personality,
           approved_words: approvedWords,
           restricted_words: restrictedWords,
           brand_rules: brandRules,
@@ -236,46 +404,113 @@ async function saveBrandDNA() {
 
   } catch (error) {
     console.error('Brand DNA error:', error)
-    alert('Brand DNA saved locally, but MySQL saving failed. Check whether Flask is running.')
+alert('Brand DNA could not be saved. Please check your connection and try again.')
   }
 }
 
 
-  const navigation = [
-    { name: 'Dashboard', icon: LayoutDashboard },
-    { name: 'Brand Guidelines', icon: BookOpen },
-    { name: 'Content Checker', icon: FileCheck },
-    { name: 'Approval Center', icon: ShieldCheck },
-    { name: 'History', icon: History },
-  ]
+const navigation = [
+  { name: 'Dashboard', icon: LayoutDashboard },
+  { name: 'Brand Guidelines', icon: BookOpen },
+  { name: 'Content Checker', icon: FileCheck },
+  { name: 'Approval Center', icon: ShieldCheck },
+  { name: 'History', icon: History },
+  { name: 'Profile', icon: UserRound },
+]
 
+function handleReviseReview(item) {
+  setRevisionReviewId(item.id)
 
-function analyzeContent() {
+  if (item.content?.startsWith('IMAGE ANALYSIS:')) {
+    setRevisionType('image')
+    setContent('')
+  } else {
+    setRevisionType('text')
+    setContent(item.content || '')
+  }
+
+  setAnalyzed(false)
+  setActive('Content Checker')
+}
+
+async function analyzeContent() {
   if (!content.trim()) {
     alert('Please enter some content to check.')
     return
   }
 
-  const restrictedList = restrictedWords
-    .split(',')
-    .map(word => word.trim())
-    .filter(word => word.length > 0)
+  try {
+    const response = await apiFetch('/api/analyze-text', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ content })
+    })
 
-  const foundIssues = restrictedList.filter(word =>
-    content.toLowerCase().includes(word.toLowerCase())
+    const data = await response.json()
+
+    if (!response.ok) {
+      alert(data.error || 'AI analysis failed.')
+      return
+    }
+
+    setAnalysisResult({
+      score: data.score,
+      issues: data.issues,
+      passed: data.issues.length === 0,
+      summary: data.summary
+    })
+
+    setApprovalStatus('Pending Review')
+    setAnalyzed(true)
+try {
+  const isRevision = revisionReviewId !== null
+
+  const saveResponse = await apiFetch(
+    isRevision
+      ? `/api/reviews/${revisionReviewId}`
+      : '/api/reviews',
+    {
+      method: isRevision ? 'PUT' : 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ...(isRevision ? {} : { brand_name: brandName }),
+        content,
+        score: data.score,
+        issues: data.issues.length,
+        status: 'Pending Review'
+      })
+    }
   )
 
-  const score = Math.max(0, 100 - foundIssues.length * 20)
+  const saveData = await saveResponse.json()
 
-  setAnalysisResult({
-    score,
-    issues: foundIssues,
-    passed: foundIssues.length === 0
-  })
+  if (!saveResponse.ok) {
+    throw new Error(saveData.error || 'Could not save review.')
+  }
 
-  setApprovalStatus('Pending Review')
-  setAnalyzed(true)
+  if (isRevision) {
+    setRevisionReviewId(null)
+    alert('Revised content resubmitted successfully!')
+  } else {
+    alert('Content submitted for approval successfully!')
+  }
+
+} catch (saveError) {
+  console.error('Review saving error:', saveError)
+  alert(saveError.message || 'Could not save review.')
 }
+
+
+  } catch (error) {
+    console.error('AI analysis error:', error)
+    alert('Could not connect to the server.')
+  }
+}
+
 
 
 async function handleReview(status) {
@@ -297,32 +532,19 @@ async function handleReview(status) {
 
   setApprovalStatus(status)
 
-  const updatedHistory = [newReview, ...reviewHistory]
-
-  setReviewHistory(updatedHistory)
-
-  try {
-    localStorage.setItem(
-      'inkloomReviewHistory',
-      JSON.stringify(updatedHistory)
-    )
-  } catch {
-    alert('Review status updated, but history could not be saved locally.')
-  }
+setReviewHistory(prev => [newReview, ...prev])
 
   // Save the review to MySQL through Flask
   try {
-    const response = await fetch(
-      apiUrl('/api/reviews'),
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          brand_name: brandName,
-          content: content,
-          score: analysisResult.score,
+    const response = await apiFetch('/api/reviews', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        brand_name: brandName,
+        content: content,
+        score: analysisResult.score,
           issues: analysisResult.issues.length,
           status: status
         })
@@ -344,7 +566,68 @@ async function handleReview(status) {
   }
 }
 
-const statsHistory = displayedHistory
+const statsHistory = displayedHistory.filter(item => {
+  if (selectedPeriod === 'All time') return true
+
+  const days = selectedPeriod === 'Last 7 days' ? 7
+    : selectedPeriod === 'Last 30 days' ? 30
+    : 90
+
+  const reviewedDate = new Date(item.reviewedAt)
+
+  if (isNaN(reviewedDate.getTime())) return false
+
+  const now = new Date()
+  const cutoff = new Date()
+  cutoff.setDate(now.getDate() - days)
+
+  return reviewedDate >= cutoff && reviewedDate <= now
+})
+
+
+function downloadReviewReport(item) {
+  const report = `
+INKLOOM AI - REVIEW REPORT
+================================
+
+Brand: ${item.brandName}
+Review ID: ${item.id}
+Reviewed At: ${item.reviewedAt}
+Status: ${item.status}
+
+Compliance Score: ${item.score}%
+Issues Found: ${item.issues}
+
+CONTENT REVIEWED
+--------------------------------
+${item.content}
+
+REVIEWER FEEDBACK
+--------------------------------
+${item.reviewerFeedback || 'No reviewer feedback provided.'}
+
+================================
+Generated by INKLOOM AI
+Create Freely. Stay On Brand.
+`;
+
+  const blob = new Blob([report], {
+    type: 'text/plain;charset=utf-8'
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = `INKLOOM-Review-${item.id}.txt`;
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+}
+
 
 const totalReviewed = statsHistory.length
 
@@ -366,6 +649,160 @@ const pendingApprovals = statsHistory.filter(
   item => ['Pending', 'Pending Review'].includes(item.status)
 ).length
 
+  if (authLoading) {
+    return <div className="auth-loading">Loading INKLOOM AI...</div>
+  }
+
+
+  if (!authUser) {
+    return (
+      <main className="auth-layout">
+        <section className="auth-brand-panel">
+          <div className="auth-brand-logo">
+            <div className="auth-logo-symbol">I</div>
+            <div>
+              <h2>INKLOOM AI</h2>
+              <span>BRAND GOVERNANCE</span>
+            </div>
+          </div>
+
+          <div className="auth-brand-copy">
+            <h1>
+              Create Freely.<br />
+              Stay On <span>Brand.</span>
+            </h1>
+            <p>
+              Keep every message consistent, every visual aligned,
+              and every piece of content true to your brand identity.
+            </p>
+          </div>
+
+          <div className="auth-illustration">
+            <div className="auth-orbit auth-orbit-one" />
+            <div className="auth-orbit auth-orbit-two" />
+            <div className="auth-shield">
+              <ShieldCheck size={112} strokeWidth={1.2} />
+            </div>
+            <div className="auth-floating auth-float-one">
+              <FileText size={28} />
+            </div>
+            <div className="auth-floating auth-float-two">
+              <Sparkles size={28} />
+            </div>
+            <div className="auth-floating auth-float-three">
+              <CheckCircle2 size={28} />
+            </div>
+          </div>
+
+          <div className="auth-brand-footer">
+            Intelligent brand governance, designed for creativity.
+          </div>
+        </section>
+
+        <section className="auth-form-panel">
+          <div className="auth-card">
+            <div className="auth-card-heading">
+              <h2>INKLOOM AI</h2>
+              <p>Brand Governance</p>
+              <span />
+            </div>
+
+            <div className="auth-tabs">
+              <button
+                type="button"
+                className={authMode === 'login' ? 'active' : ''}
+              onClick={() => {
+  setAuthMode('login')
+  setAuthName('')
+  setAuthEmail('')
+  setAuthPassword('')
+  setAuthError('')
+}}
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                className={authMode === 'register' ? 'active' : ''}
+               onClick={() => {
+  setAuthMode('register')
+  setAuthName('')
+  setAuthEmail('')
+  setAuthPassword('')
+  setAuthError('')
+}}
+              >
+                Register
+              </button>
+            </div>
+
+           <form onSubmit={handleAuthSubmit} autoComplete="off">
+              {authMode === 'register' && (
+                <input
+                  type="text"
+                  placeholder="Full name"
+                  value={authName}
+                  onChange={event => setAuthName(event.target.value)}
+                  required
+                />
+              )}
+
+              <input
+                type="email"
+                placeholder="Email address"
+                value={authEmail}
+                onChange={event => setAuthEmail(event.target.value)}
+                required
+              />
+
+              <input
+                type="password"
+                placeholder="Password (minimum 8 characters)"
+                value={authPassword}
+                onChange={event => setAuthPassword(event.target.value)}
+                minLength={8}
+                required
+              />
+
+              {authError && (
+                <p className="auth-error">{authError}</p>
+              )}
+
+              <button type="submit" className="auth-submit">
+                {authMode === 'register' ? 'Create Account' : 'Login'}
+                <ArrowUpRight size={19} />
+              </button>
+            </form>
+
+            {authMode === 'login' && (
+              <div className="demo-access">
+                <strong>Demo Account</strong>
+                <span>Email: demo@inkloom.ai</span>
+                <span>Password: InkloomDemo2026!</span>
+              </div>
+            )}
+
+            <p className="auth-switch">
+              {authMode === 'register'
+                ? 'Already have an account?'
+                : "Don't have an account?"}
+              {' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode(authMode === 'register' ? 'login' : 'register')
+                  setAuthError('')
+                }}
+              >
+                {authMode === 'register' ? 'Login' : 'Register'}
+              </button>
+            </p>
+          </div>
+        </section>
+      </main>
+    )
+  }
+
 
   return (
     <div className="app-shell">
@@ -378,11 +815,25 @@ const pendingApprovals = statsHistory.filter(
           </div>
         </div>
 
-        <div className="workspace">
-          <span className="workspace-dot"></span>
-          My Workspace
-          <ChevronDown size={15} />
-        </div>
+      <div className="workspace-wrapper">
+  <button
+    type="button"
+    className="workspace"
+    onClick={() => setWorkspaceOpen(!workspaceOpen)}
+  >
+    <span className="workspace-dot"></span>
+    My Workspace
+    <ChevronDown size={15} />
+  </button>
+
+  {workspaceOpen && (
+    <div className="workspace-dropdown">
+      <p>Current workspace</p>
+      <strong>{profileName || 'INKLOOM Demo'}</strong>
+      <span>{profileEmail}</span>
+    </div>
+  )}
+</div>
 
         <p className="nav-label">WORKSPACE</p>
 
@@ -405,18 +856,26 @@ const pendingApprovals = statsHistory.filter(
         </nav>
 
         <div className="sidebar-bottom">
-          <button className="nav-item">
-            <Settings size={19} />
-            Settings
-          </button>
-          <div className="profile">
-            <div className="avatar">K</div>
-            <div>
-              <strong>Workspace Admin</strong>
-              <small>Administrator</small>
-            </div>
-            <ChevronDown size={15} />
-          </div>
+          <button
+  type="button"
+  className="nav-item"
+  onClick={() => setActive('Settings')}
+>
+  <Settings size={19} />
+  Settings
+</button>
+        <div className="profile">
+  <div className="avatar">
+    {authUser?.name?.charAt(0).toUpperCase() || 'U'}
+  </div>
+  <div>
+    <strong>{authUser?.name}</strong>
+    <small>{authUser?.email}</small>
+  </div>
+  <button type="button" onClick={handleLogout}>
+    Logout
+  </button>
+</div>
         </div>
       </aside>
 
@@ -463,8 +922,38 @@ const pendingApprovals = statsHistory.filter(
     </div>
   )}
 </div>
-            <button className="icon-button"><Bell size={19} /></button>
-            <div className="avatar">K</div>
+
+{notificationsOpen && (
+  <div className="notification-panel">
+    <h3>Notifications</h3>
+    <p>You’re all caught up!</p>
+  </div>
+)}
+<div className="notification-wrapper">
+  <button
+    type="button"
+    className="icon-button"
+    onClick={() => setNotificationsOpen(!notificationsOpen)}
+    title="Notifications"
+  >
+    <Bell size={19} />
+  </button>
+
+  {notificationsOpen && (
+    <div className="notification-panel">
+      <h3>Notifications</h3>
+      <p>You're all caught up!</p>
+    </div>
+  )}
+</div>
+          <button
+  type="button"
+  className="avatar"
+  onClick={() => setActive('Profile')}
+  title="Open Profile"
+>
+  I
+</button>
           </div>
         </header>
 
@@ -506,7 +995,16 @@ const pendingApprovals = statsHistory.filter(
                   <h2>Overview</h2>
                   <p>A quick look at your brand governance activity.</p>
                 </div>
-                <button className="period-button">Last 30 days <ChevronDown size={15} /></button>
+<select
+  className="period-button"
+  value={selectedPeriod}
+  onChange={(e) => setSelectedPeriod(e.target.value)}
+>
+  <option value="Last 7 days">Last 7 days</option>
+  <option value="Last 30 days">Last 30 days</option>
+  <option value="Last 90 days">Last 90 days</option>
+  <option value="All time">All time</option>
+</select>
               </div>
 
              
@@ -773,39 +1271,37 @@ const pendingApprovals = statsHistory.filter(
         {analysisResult.passed ? 'Passed' : 'Needs Review'}
       </span>
     </div>
+{analysisResult.summary && (
+  <p className="analysis-summary">
+    {analysisResult.summary}
+  </p>
+)}
 
-    <div className="compliance-score">
-      <span>{analysisResult.score}%</span>
-      <p>Prototype compliance score</p>
-    </div>
+<div className="compliance-score">
+  <span>{analysisResult.score}%</span>
+  <p>AI compliance score</p>
+</div>
 
     <div className="issues-section">
       <h3>Detected Issues</h3>
 
       {analysisResult.issues.length > 0 ? (
         <ul>
-       {analysisResult.issues.map((word, index) => {
-  const suggestions = {
-    'best in the world': 'A leading choice',
-    'guaranteed results': 'Designed to support your goals'
-  }
+   {analysisResult.issues.map((issue, index) => (
+  <li key={index} className="issue-card">
+    <div>
+      <AlertTriangle size={16} />
+      <strong>{issue.phrase}</strong>
+      <span className={`severity-${issue.severity?.toLowerCase()}`}>
+        {issue.severity}
+      </span>
+    </div>
 
-  const suggestion = suggestions[word.toLowerCase()]
-    || 'Review this phrase and use wording that follows your brand guidelines.'
-
-  return (
-    <li key={index} className="issue-card">
-      <div>
-        <AlertTriangle size={16} />
-        <strong>Restricted phrase: {word}</strong>
-      </div>
-
-      <p>
-        <strong>Suggested correction:</strong> {suggestion}
-      </p>
-    </li>
-  )
-})}
+    <p><strong>Guideline:</strong> {issue.guideline}</p>
+    <p><strong>Why it matters:</strong> {issue.explanation}</p>
+    <p><strong>Suggested correction:</strong> {issue.suggestion}</p>
+  </li>
+))}
         </ul>
       ) : (
         <p className="success-message">
@@ -816,8 +1312,14 @@ const pendingApprovals = statsHistory.filter(
     </div>
   </div>
 )}
-
-<ImageReview />
+<ImageReview
+  revisionReviewId={revisionType === 'image' ? revisionReviewId : null}
+  onRevisionComplete={() => {
+    setRevisionReviewId(null)
+    setRevisionType(null)
+    alert('Image revised and resubmitted successfully!')
+  }}
+/>
 
 </section>
           )}
@@ -959,18 +1461,19 @@ const pendingApprovals = statsHistory.filter(
 )}
 
          
+
 {active === 'History' && (
-  <section className="page-panel">
+  <section className="page-panel history-page">
     <p className="eyebrow">AUDIT TRAIL</p>
     <h1>Review History</h1>
     <p className="subtitle">
       Track content checks and governance activity.
     </p>
 
-   {displayedHistory.length > 0 ? (
+    {displayedHistory.length > 0 ? (
       <div className="history-list">
-       {displayedHistory.map((item) => (
-          <div className="history-card" key={item.id}>
+        {displayedHistory.map((item) => (
+          <article className="history-card" key={item.id}>
             <div className="history-card-header">
               <div>
                 <h3>{item.brandName}</h3>
@@ -978,25 +1481,62 @@ const pendingApprovals = statsHistory.filter(
               </div>
 
               <span
-                className={
+                className={`history-status ${
                   item.status === 'Approved'
                     ? 'status-approved'
+                    : item.status === 'Pending Review' ||
+                      item.status === 'Pending'
+                    ? 'status-pending'
                     : 'status-changes'
-                }
+                }`}
               >
                 {item.status}
               </span>
             </div>
 
-            <div className="history-content">
-              <p>{item.content}</p>
+            <div className="history-details">
+              <div className="history-metric">
+                <span>Compliance Score</span>
+                <strong>{item.score}%</strong>
+              </div>
+
+              <div className="history-metric">
+                <span>Issues Found</span>
+                <strong>{item.issues}</strong>
+              </div>
             </div>
 
-            <div className="history-details">
-              <span>Compliance Score: <strong>{item.score}%</strong></span>
-              <span>Issues Found: <strong>{item.issues}</strong></span>
-            </div>
-          </div>
+            <details className="history-report">
+              <summary>View full review report</summary>
+             <div className="history-content">
+  <pre>{item.content}</pre>
+
+  {item.reviewerFeedback && (
+    <div className="reviewer-feedback">
+      <h4>Reviewer Feedback</h4>
+      <p>{item.reviewerFeedback}</p>
+    </div>
+  )}
+</div>
+            </details>
+
+<button
+  type="button"
+  className="secondary-button"
+  onClick={() => downloadReviewReport(item)}
+>
+  <FileText size={17} />
+  Download Report
+</button>
+            {item.status === 'Needs Changes' && (
+  <button
+    className="primary-button"
+    onClick={() => handleReviseReview(item)}
+  >
+    Revise & Resubmit
+  </button>
+)}
+          </article>
         ))}
       </div>
     ) : (
@@ -1010,6 +1550,166 @@ const pendingApprovals = statsHistory.filter(
     )}
   </section>
 )}
+
+
+
+
+{active === 'Profile' && (
+  <section className="page-panel profile-page">
+    <div className="profile-brand">
+      <div className="profile-brand-icon">I</div>
+      <div>
+        <strong>INKLOOM AI</strong>
+        <small>BRAND GOVERNANCE</small>
+      </div>
+    </div>
+
+    <h1>Profile</h1>
+    <p className="subtitle">
+      Manage your profile and account settings.
+    </p>
+
+    <div className="profile-section">
+      <div className="profile-overview">
+        <div className="profile-avatar">
+          {authUser?.name?.charAt(0).toUpperCase() || 'U'}
+        </div>
+
+        <div className="profile-user-info">
+          <h3>{authUser?.name}</h3>
+          <p>{authUser?.email}</p>
+          <span className="profile-active">
+            ● Account active
+          </span>
+        </div>
+
+        <button
+          type="button"
+          className="profile-edit-btn"
+          onClick={() => {
+            setProfileEditing(!profileEditing)
+            setProfileMessage('')
+          }}
+        >
+          {profileEditing ? 'Cancel' : 'Edit profile'}
+        </button>
+      </div>
+
+      <div className="profile-divider" />
+
+      <h3>Personal Information</h3>
+      <p className="profile-description">
+        Update your name and email.
+      </p>
+
+      <form onSubmit={handleProfileUpdate}>
+        <div className="profile-fields">
+          <div>
+            <label>Full name</label>
+            <input
+              type="text"
+              value={profileName}
+              disabled={!profileEditing}
+              onChange={event => setProfileName(event.target.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <label>Email address</label>
+            <input
+              type="email"
+              value={profileEmail}
+              disabled={!profileEditing}
+              onChange={event => setProfileEmail(event.target.value)}
+              required
+            />
+          </div>
+        </div>
+
+        {profileEditing && (
+          <button type="submit" className="profile-save-btn">
+            Save changes
+          </button>
+        )}
+       
+
+        {profileMessage && (
+          <p className="profile-message">{profileMessage}</p>
+        )}
+      </form>
+
+      <div className="profile-divider" />
+
+      <h3>Security</h3>
+      <p className="profile-description">
+        Your account security information.
+      </p>
+
+      <div className="profile-security-row">
+        <div>
+          <strong>Password</strong>
+          <p>Protected with secure password hashing.</p>
+        </div>
+        <span className="profile-security-label">
+          Protected
+        </span>
+      </div>
+    </div>
+  </section>
+)}
+{active === 'Settings' && (
+  <section className="page-panel profile-page">
+    <div className="profile-brand">
+      <div className="profile-brand-icon">I</div>
+      <div>
+        <strong>INKLOOM AI</strong>
+        <small>BRAND GOVERNANCE</small>
+      </div>
+    </div>
+
+    <h1>Settings</h1>
+    <p className="subtitle">
+      Manage your application preferences.
+    </p>
+
+    <div className="profile-section">
+      <h3>Workspace</h3>
+      <p className="profile-description">
+        Your current workspace information.
+      </p>
+
+      <div className="profile-security-row">
+        <div>
+          <strong>Workspace name</strong>
+          <p>INKLOOM Demo</p>
+        </div>
+      </div>
+
+      <div className="profile-divider" />
+
+      <h3>Account</h3>
+      <p className="profile-description">
+        Your account information.
+      </p>
+
+      <div className="profile-security-row">
+        <div>
+          <strong>Email address</strong>
+          <p>{profileEmail}</p>
+        </div>
+      </div>
+
+      <div className="profile-divider" />
+
+      <h3>Appearance</h3>
+      <p className="profile-description">
+        INKLOOM AI currently uses its default appearance.
+      </p>
+    </div>
+  </section>
+)}
+
 
         </div>
       </main>

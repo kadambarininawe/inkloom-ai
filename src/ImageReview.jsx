@@ -1,4 +1,4 @@
-import { apiUrl } from './api'
+import { apiFetch } from './api'
 import { useState } from 'react'
 import {
   Sparkles,
@@ -49,7 +49,9 @@ function formatAnalysis(result) {
   })
 }
 
-function ImageReview() {
+function ImageReview({ revisionReviewId, onRevisionComplete }) {
+  const isRevision = revisionReviewId !== null &&
+                   revisionReviewId !== undefined
   const [preview, setPreview] = useState('')
   const [file, setFile] = useState(null)
   const [dimensions, setDimensions] = useState(null)
@@ -116,50 +118,60 @@ function ImageReview() {
     const input = document.getElementById('poster-upload')
     if (input) input.value = ''
   }
-
-  async function reviewImage() {
-    if (!file) {
-      setError('Please upload an image first.')
-      return
-    }
-
-    setLoading(true)
-    setError('')
-    setResult('')
-
-    try {
-      const formData = new FormData()
-      formData.append('image', file)
-
-      const response = await fetch(
-  apiUrl('/api/analyze-image'),
-        {
-          method: 'POST',
-          body: formData
-        }
-      )
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Image analysis failed.')
-      }
-
-      setResult(data.analysis || 'Gemini returned an empty response.')
-    } catch (err) {
-      setError(
-        err.message || 'Unable to connect to the INKLOOM backend.'
-      )
-    } finally {
-      setLoading(false)
-    }
+async function reviewImage() {
+  if (!file) {
+    setError('Please upload an image first.')
+    return
   }
 
+  setLoading(true)
+  setError('')
+  setResult('')
+
+  try {
+    const formData = new FormData()
+    formData.append('image', file)
+
+    if (revisionReviewId !== null && revisionReviewId !== undefined) {
+      formData.append('review_id', String(revisionReviewId))
+    }
+
+    const response = await apiFetch('/api/analyze-image', {
+      method: 'POST',
+      body: formData
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Image analysis failed.')
+    }
+
+    setResult(data.analysis || 'Gemini returned an empty response.')
+
+    if (revisionReviewId !== null && revisionReviewId !== undefined) {
+      onRevisionComplete?.()
+    }
+  } catch (err) {
+    setError(err.message || 'Unable to connect to the INKLOOM backend.')
+  } finally {
+    setLoading(false)
+  }
+}
   return (
     <section className="page-panel">
       <p className="eyebrow">AI-POWERED VISUAL GOVERNANCE</p>
 
       <h2>Image & Poster Review</h2>
+      {isRevision && (
+  <div className="revision-notice">
+    <strong>Revise Image Review</strong>
+    <p>
+      Your previous image was sent back for changes.
+      Upload your corrected image below to analyse and resubmit it.
+    </p>
+  </div>
+)}
 
       <p className="subtitle">
         Analyse posters, advertisements, logos and social media
@@ -238,7 +250,7 @@ function ImageReview() {
             ) : (
               <>
                 <Sparkles size={17} />
-                Analyse with Gemini AI
+               {isRevision ? 'Analyse & Resubmit' : 'Analyse with Gemini AI'}
               </>
             )}
           </button>
