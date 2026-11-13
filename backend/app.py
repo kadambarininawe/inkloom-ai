@@ -6,7 +6,7 @@ from database import get_db_connection
 
 import os
 import re
-import hmac
+
 
 from dotenv import load_dotenv
 from google import genai
