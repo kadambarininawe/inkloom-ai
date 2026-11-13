@@ -60,6 +60,13 @@ useEffect(() => {
 
 
 
+function handleDemoLogin() {
+  setAuthMode('login')
+  setAuthEmail('demo@inkloom.ai')
+  setAuthPassword('InkloomDemo2026!')
+  setAuthError('')
+}
+
   async function handleAuthSubmit(event) {
     event.preventDefault()
     setAuthError('')
@@ -775,11 +782,21 @@ const pendingApprovals = statsHistory.filter(
             </form>
 
             {authMode === 'login' && (
-              <div className="demo-access">
-                <strong>Demo Account</strong>
-                <span>Email: demo@inkloom.ai</span>
-                <span>Password: InkloomDemo2026!</span>
-              </div>
+             
+<div className="demo-access">
+  <strong>Demo Account</strong>
+  <span>Email: demo@inkloom.ai</span>
+  <span>Password: InkloomDemo2026!</span>
+
+  <button
+    type="button"
+    onClick={handleDemoLogin}
+  >
+    Use Demo Account
+    <ArrowUpRight size={17} />
+  </button>
+</div>
+
             )}
 
             <p className="auth-switch">

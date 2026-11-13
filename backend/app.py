@@ -133,6 +133,60 @@ def migrate_auth():
             cursor.close()
         connection.close()
 
+
+@app.route("/api/admin/reset-demo-password", methods=["POST"])
+def reset_demo_password():
+    expected_token = os.getenv("MIGRATION_TOKEN")
+    supplied_token = request.headers.get("X-Migration-Token", "")
+
+    if not expected_token or not hmac.compare_digest(
+        supplied_token, expected_token
+    ):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    connection = get_db_connection()
+
+    if connection is None:
+        return jsonify({"error": "Database connection failed."}), 500
+
+    cursor = None
+
+    try:
+        cursor = connection.cursor()
+
+        password_hash = generate_password_hash("InkloomDemo2026!")
+
+        cursor.execute("""
+            UPDATE users
+            SET password_hash = %s
+            WHERE email = %s
+        """, (password_hash, "demo@inkloom.ai"))
+
+        if cursor.rowcount != 1:
+            connection.rollback()
+            return jsonify({
+                "error": "Demo account not found or not uniquely updated."
+            }), 404
+
+        connection.commit()
+
+        return jsonify({
+            "message": "Demo account password reset successfully."
+        }), 200
+
+    except Exception:
+        connection.rollback()
+        app.logger.exception("Demo password reset failed")
+        return jsonify({
+            "error": "Password reset failed."
+        }), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+        connection.close()
+
+
 # -------------------------------
 # SAVE REVIEW
 # -------------------------------
